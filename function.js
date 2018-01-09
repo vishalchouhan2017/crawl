@@ -10,110 +10,111 @@ var Excel = require('exceljs');
 
 exports.fb = function(req, callback) {
     try {
-        console.log(JSON.stringify(globalobj))
         var pageToVisit = pageToVisits;
-        console.log("Visiting page " + pageToVisit);
-        request(pageToVisit, function(error, response, body) {
-            if (error) {
-                console.log("Error: " + error);
-            }
-            // Check status code (200 is HTTP OK)
-            // console.log(response);
-            if (response != undefined && response.statusCode === 200) {
-                // Parse the document body
-                var $ = cheerio.load(body);
-
-                var name = $('.show-name').text();
-                name = name.trim().split('\n\t');
-                var array = [];
-                for (i = 0; i < name.length; i++) {
-                    name[i] = name[i].trim().split('\t');
-                    if (name[i] != "") {
-                        array.push(name[i][0]);
+        if(pageToVisit != null || pageToVisit != undefined || response != undefined){
+            console.log("Visiting page " + pageToVisit);
+            request(pageToVisit, function(error, response, body) {
+                if (error) {
+                    console.log("Error: " + error);
+                }
+                // Check status code (200 is HTTP OK)
+                if (response != undefined && response.statusCode === 200) {
+                    // Parse the document body
+                    var $ = cheerio.load(body);
+    
+                    var name = $('.show-name').text();
+                    name = name.trim().split('\n\t');
+                    var array = [];
+                    for (i = 0; i < name.length; i++) {
+                        name[i] = name[i].trim().split('\t');
+                        if (name[i] != "") {
+                            array.push(name[i][0]);
+                        }
                     }
-                }
-
-                var country = $('.show-country').text();
-                country = country.trim().split('\n\t');
-                var countryArray = [];
-                for (i = 0; i < country.length; i++) {
-                    country[i] = country[i].trim().split('\t');
-                    if (country[i] != "") {
-                        countryArray.push(country[i][0]);
+    
+                    var country = $('.show-country').text();
+                    country = country.trim().split('\n\t');
+                    var countryArray = [];
+                    for (i = 0; i < country.length; i++) {
+                        country[i] = country[i].trim().split('\t');
+                        if (country[i] != "") {
+                            countryArray.push(country[i][0]);
+                        }
                     }
-                }
-
-                var fan = $('.item strong').text();
-                fan = fan.trim().split('\n');
-                var fanArray = [];
-                for (i = 1; i < fan.length - 3; i++) {
-                    fan[i] = fan[i].trim().split('\t');
-                    if (fan[i] != "") {
-                        fanArray.push(fan[i][0]);
+    
+                    var fan = $('.item strong').text();
+                    fan = fan.trim().split('\n');
+                    var fanArray = [];
+                    for (i = 1; i < fan.length - 3; i++) {
+                        fan[i] = fan[i].trim().split('\t');
+                        if (fan[i] != "") {
+                            fanArray.push(fan[i][0]);
+                        }
                     }
-                }
-                var links = [];
-                var nextLink = "";
-                $('a').each(function(i, elem) {
-                    links.push(elem.attribs.href);
-                });
-
-                for (i = 0; i < links.length; i++) {
-                    if (links[i].includes("/statistics/facebook/pages/total/page-")) {
-                        nextLink = "https://www.socialbakers.com" + links[i];
+                    var links = [];
+                    var nextLink = "";
+                    $('a').each(function(i, elem) {
+                        links.push(elem.attribs.href);
+                    });
+    
+                    for (i = 0; i < links.length; i++) {
+                        if (links[i].includes("/statistics/facebook/pages/total/page-")) {
+                            nextLink = "https://www.socialbakers.com" + links[i];
+                        }
                     }
-                }
-                var insertObj = [];
-                for (i = 0; i < fanArray.length; i++) {
-                    insertObj.push({
-                        "name": array[i],
-                        "country": countryArray[i],
-                        "fanCount": fanArray[i]
-                    })
-                }
-
-
-                var db = dbConfig.mongoDbConn;
-                var Coll = db.collection("fbData");
-                Coll.insert(insertObj, function(err, results) {
-                    if (err) {
-                        if (err.code == 11000) {
-                            resJson = {
-                                "http_code": "500",
-                                "message": "data already available"
-                            };
-                            return callback(false, resJson);
+                    var insertObj = [];
+                    for (i = 0; i < fanArray.length; i++) {
+                        insertObj.push({
+                            "name": array[i],
+                            "country": countryArray[i],
+                            "fanCount": fanArray[i]
+                        })
+                    }
+    
+    
+                    var db = dbConfig.mongoDbConn;
+                    var Coll = db.collection("fbData");
+                    Coll.insert(insertObj, function(err, results) {
+                        if (err) {
+                            if (err.code == 11000) {
+                                resJson = {
+                                    "http_code": "500",
+                                    "message": "data already available"
+                                };
+                                return callback(false, resJson);
+                            } else {
+                                resJson = {
+                                    "http_code": "500",
+                                    "message": "Db error !"
+                                };
+                                return callback(false, resJson);
+                            }
                         } else {
+                            pageToVisits = nextLink;
+                            if (nextLink) {
+                                fun.fb(req, function(err, response) {
+                                    if (err) {
+                                        // return callback(err, response);
+                                    } else {
+                                        // return callback(err, response);
+                                    }
+                                })
+                            }
                             resJson = {
-                                "http_code": "500",
-                                "message": "Db error !"
+                                "http_code": "200",
+                                "message": "successfully insert"
                             };
                             return callback(false, resJson);
                         }
-                    } else {
-                        pageToVisits = nextLink;
-                        if (nextLink) {
-                            fun.fb(req, function(err, response) {
-                                if (err) {
-                                    // return callback(err, response);
-                                } else {
-                                    // return callback(err, response);
-                                }
-                            })
-                        }
-                        resJson = {
-                            "http_code": "200",
-                            "message": "successfully insert"
-                        };
-                        return callback(false, resJson);
-                    }
-                });
-
-            } else {
-                console.log(JSON.stringify(globalobj));
-            }
-        });
-
+                    });
+    
+                } else {
+                    console.log(JSON.stringify(globalobj));
+                }
+            });
+    
+        }
+       
     } catch (e) {
         console.log(e)
         resJson = {
@@ -127,114 +128,120 @@ exports.fb = function(req, callback) {
 exports.youTube = function(req, callback) {
     try {
         var pageToVisit = pageToVisits1;
-        console.log("Visiting page " + pageToVisit);
-        request(pageToVisit, function(error, response, body) {
-            if (error) {
-                console.log("Error: " + error);
-            }
-            // Check status code (200 is HTTP OK)
-            console.log("Status code: " + response.statusCode);
-            if (response != undefined && response.statusCode === 200) {
-                // Parse the document body
-                var $ = cheerio.load(body);
-                var name = $('.name').text();
-                name = name.trim().split('\n\t');
-                var array = [];
-                for (i = 0; i < name.length; i++) {
-                    name[i] = name[i].trim().split('\t');
-                    if (name[i] != "") {
-                        if (!parseInt(name[i]))
-                            array.push(name[i][0]);
+        if(pageToVisit != null || pageToVisit != undefined || response != undefined){
+            console.log("Visiting page " + pageToVisit);
+            request(pageToVisit, function(error, response, body) {
+                if (error) {
+                    console.log("Error: " + error);
+                }
+                // Check status code (200 is HTTP OK)
+                console.log("Status code: " + response.statusCode);
+                if (response != undefined && response.statusCode === 200) {
+                    // Parse the document body
+                    var $ = cheerio.load(body);
+                    var name = $('.name').text();
+                    name = name.trim().split('\n\t');
+                    var array = [];
+                    for (i = 0; i < name.length; i++) {
+                        name[i] = name[i].trim().split('\t');
+                        if (name[i] != "") {
+                            if (!parseInt(name[i]))
+                                array.push(name[i][0]);
+                        }
                     }
-                }
-               
-                var fan = $('.item').text();
-                fan = fan.trim().split('\n');
-                var fanArray = [];
-                for (i = 35; i < fan.length - 90; i++) {
-                    fan[i] = fan[i].trim().split('\t');
-                    if (fan[i] != "") {
-                        fanArray.push(fan[i][0]);
+                   
+                    var fan = $('.item').text();
+                    fan = fan.trim().split('\n');
+                    var fanArray = [];
+                    for (i = 35; i < fan.length - 90; i++) {
+                        fan[i] = fan[i].trim().split('\t');
+                        if (fan[i] != "") {
+                            fanArray.push(fan[i][0]);
+                        }
                     }
-                }
-                for(i=0;i<fanArray.length;i++){
-                 if(fanArray[i] == "Subscribers"){
-                  fanArray.splice(i,1);
-                  i--;
-                 }
-                 if(fanArray[i] == "Total uploaded video views"){
-                  fanArray.splice(i,1);
-                  i--;
-                 }
-                   if(fanArray[i] == fanArray[i+1]){
-                  fanArray.splice(i,1);
-                  i--;
-                 }
-                }
-
-                var links = [];
-                var nextLink = "";
-                $('a').each(function(i, elem) {
-                    links.push(elem.attribs.href);
-                });
-
-
-                for (i = 0; i < links.length; i++) {
-                    if (links[i].includes("/statistics/youtube/channels/afghanistan/page-")) {
-                        nextLink = "https://www.socialbakers.com" + links[i];
+                    for(i=0;i<fanArray.length;i++){
+                     if(fanArray[i] == "Subscribers"){
+                      fanArray.splice(i,1);
+                      i--;
+                     }
+                     if(fanArray[i] == "Total uploaded video views"){
+                      fanArray.splice(i,1);
+                      i--;
+                     }
+                       if(fanArray[i] == fanArray[i+1]){
+                      fanArray.splice(i,1);
+                      i--;
+                     }
                     }
-                }
-                console.log(nextLink);
-
-                var insertObj = [];
-                for (i = 0; i < fanArray.length; i=i+4) {
-                    insertObj.push({
-                        "name": fanArray[i+1],
-                        "subscriber": fanArray[i+2],
-                        "views": fanArray[i+3]
-                    })
-                }
-
-                var db = dbConfig.mongoDbConn;
-                var Coll = db.collection("youTubeData");
-                Coll.insert(insertObj, function(err, results) {
-                    if (err) {
-                        if (err.code == 11000) {
-                            resJson = {
-                                "http_code": "500",
-                                "message": "data already available"
-                            };
-                            return callback(false, resJson);
+    
+                    var links = [];
+                    var nextLink = "";
+                    $('a').each(function(i, elem) {
+                        links.push(elem.attribs.href);
+                    });
+    
+    
+                    for (i = 0; i < links.length; i++) {
+                        // console.log(links[i]);
+                        if (links[i].includes("/statistics/youtube/channels/page-")) {
+                            nextLink = "https://www.socialbakers.com" + links[i];
+                            console.log("nextlink"+nextLink);
+                        }
+                    }
+                    // console.log("sdfsdf"+nextLink);
+    
+                    var insertObj = [];
+                    for (i = 0; i < fanArray.length; i=i+4) {
+                        insertObj.push({
+                            "name": fanArray[i+1],
+                            "subscriber": fanArray[i+2],
+                            "views": fanArray[i+3]
+                        })
+                    }
+    
+                    var db = dbConfig.mongoDbConn;
+                    var Coll = db.collection("youTubeData");
+                    Coll.insert(insertObj, function(err, results) {
+                        if (err) {
+                            if (err.code == 11000) {
+                                resJson = {
+                                    "http_code": "500",
+                                    "message": "data already available"
+                                };
+                                return callback(false, resJson);
+                            } else {
+                                resJson = {
+                                    "http_code": "500",
+                                    "message": "Db error !"
+                                };
+                                return callback(false, resJson);
+                            }
                         } else {
-                            resJson = {
-                                "http_code": "500",
-                                "message": "Db error !"
-                            };
-                            return callback(false, resJson);
+                            pageToVisits1 = nextLink;
+                            if (nextLink) {
+                                fun.youTube(req, function(err, response) {
+                                    if (err) {
+                                        // return callback(err, response);
+                                    } else {
+                                        // return callback(err, response);
+                                    }
+                                })
+                            }
                         }
-                    } else {
-                        pageToVisits1 = nextLink;
-                        if (nextLink) {
-                            fun.youtube(req, function(err, response) {
-                                if (err) {
-                                    // return callback(err, response);
-                                } else {
-                                    // return callback(err, response);
-                                }
-                            })
-                        }
-                        resJson = {
-                            "http_code": "200",
-                            "message": "successfully insert"
-                        };
-                        return callback(false, resJson);
-                    }
-                });
-
-            } else {
-                console.log(JSON.stringify(globalobj));
-            }
-        });
+                    });
+    
+                } else {
+                    console.log(JSON.stringify(globalobj));
+                }
+            });
+        }else{
+            resJson = {
+                "http_code": "200",
+                "message": "successfully insert"
+            };
+            return callback(false, resJson);
+        }        
+       
 
     } catch (e) {
         console.log(e)
@@ -465,9 +472,7 @@ function createExcel(result, pathToCreate, sheetName, callback) {
 
 function createExcel1(result, pathToCreate, sheetName, callback) {
 
-  console.log(JSON.stringify(result));
-
-    console.log(" Starting creation of Excel.");
+    console.log(" Starting creation of youtube Excel.");
 
     var workbook = new Excel.Workbook();
     var sheet = workbook.addWorksheet(sheetName);
