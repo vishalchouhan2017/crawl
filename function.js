@@ -322,7 +322,7 @@ exports.downloadYouTubeExcel = function(req, callback) {
                     callback(err, resJson);
                 } else if (result.length) {
                     var pathToCreate = "youtube" + ".xlsx";
-                    console.log(JSON.stringify(result));
+                    // console.log(JSON.stringify(result));
 
                     createExcel1(result, pathToCreate, "youtube", function(err, result) {
                         if (!err) {
