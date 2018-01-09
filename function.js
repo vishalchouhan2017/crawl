@@ -272,7 +272,7 @@ exports.downloadFbExcel = function(req, callback) {
                     };
                     callback(err, resJson);
                 } else if (result.length) {
-                    var pathToCreate = "/usr/NodeJslogs/fbData" + ".xlsx";
+                    var pathToCreate = "fbData" + ".xlsx";
 
                     createExcel(result, pathToCreate, "fbData", function(err, result) {
                         if (!err) {
@@ -321,7 +321,7 @@ exports.downloadYouTubeExcel = function(req, callback) {
                     };
                     callback(err, resJson);
                 } else if (result.length) {
-                    var pathToCreate = "/usr/NodeJslogs/youtube" + ".xlsx";
+                    var pathToCreate = "youtube" + ".xlsx";
                     console.log(JSON.stringify(result));
 
                     createExcel1(result, pathToCreate, "youtube", function(err, result) {
